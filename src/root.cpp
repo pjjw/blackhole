@@ -17,31 +17,21 @@ namespace blackhole {
 using detail::spinlock_t;
 
 struct root_logger_t::sync_t {
-#ifndef __clang__
     typedef spinlock_t mutex_type;
     mutable mutex_type mutex;
-#endif
 
     boost::thread_specific_ptr<scoped_t> context;
 
     sync_t(): context([](scoped_t*) {}) {}
 
     auto load(const std::shared_ptr<inner_t>& source) const noexcept -> std::shared_ptr<inner_t> {
-#ifdef __clang__
-        return std::atomic_load_explicit(&source, std::memory_order_acquire);
-#else
         std::lock_guard<mutex_type> lock(mutex);
         return source;
-#endif
     }
 
     auto store(std::shared_ptr<inner_t>& source, std::shared_ptr<inner_t> value) noexcept -> void {
-#ifdef __clang__
-        std::atomic_store_explicit(&source, std::move(value), std::memory_order_release);
-#else
         std::lock_guard<mutex_type> lock(mutex);
         source = std::move(value);
-#endif
     }
 };
 
